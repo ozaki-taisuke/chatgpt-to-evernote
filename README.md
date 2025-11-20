@@ -24,7 +24,7 @@ ChatGPT Windowsデスクトップアプリの会話ログを自動的にEvernote
 ### 1. リポジトリのクローン
 
 ```powershell
-git clone https://github.com/yourusername/chatgpt-to-evernote.git
+git clone https://github.com/ozaki-taisuke/chatgpt-to-evernote
 cd chatgpt-to-evernote
 ```
 
@@ -228,7 +228,9 @@ MIT License
 
 ## 作者
 
-Your Name
+Ozaki Taisuke
+- [ozkk.jp](https://ozkk.jp/)
+- [@ozata92](https://x.com/ozata92)
 
 ## 貢献
 
