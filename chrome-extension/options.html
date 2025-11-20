@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>ChatGPT to Evernote - 設定</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #10A37F 0%, #0d8a68 100%);
+      color: #333;
+    }
+    
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    
+    h1 {
+      color: #10A37F;
+      margin-top: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .icon {
+      font-size: 32px;
+    }
+    
+    .info-box {
+      background: #f0f9ff;
+      border-left: 4px solid #10A37F;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 4px;
+    }
+    
+    .warning-box {
+      background: #fff4e6;
+      border-left: 4px solid #ff9800;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 4px;
+    }
+    
+    label {
+      display: block;
+      margin-top: 20px;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #555;
+    }
+    
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 14px;
+      box-sizing: border-box;
+      transition: border-color 0.3s;
+    }
+    
+    input:focus {
+      outline: none;
+      border-color: #10A37F;
+    }
+    
+    button {
+      background: #10A37F;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 20px;
+      transition: background 0.3s;
+    }
+    
+    button:hover {
+      background: #0d8a68;
+    }
+    
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    
+    .status {
+      margin-top: 20px;
+      padding: 12px;
+      border-radius: 6px;
+      display: none;
+    }
+    
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+      display: block;
+    }
+    
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+      display: block;
+    }
+    
+    .token-info {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f5f5f5;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    
+    .token-info .label {
+      font-weight: 600;
+      color: #666;
+    }
+    
+    .token-info .value {
+      color: #333;
+      margin-top: 5px;
+    }
+    
+    .expiry-warning {
+      color: #d32f2f;
+      font-weight: 600;
+    }
+    
+    a {
+      color: #10A37F;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>
+      <span class="icon">🐘💬</span>
+      ChatGPT to Evernote 設定
+    </h1>
+    
+    <div class="info-box">
+      <strong>📝 Developer Tokenの取得方法</strong><br>
+      1. <a href="https://www.evernote.com/api/DeveloperToken.action" target="_blank">Evernote Developer Tokens</a> にアクセス<br>
+      2. Evernoteアカウントでログイン<br>
+      3. "Create a developer token" をクリックしてトークンを生成<br>
+      4. 生成されたトークンをコピーして下記に貼り付け
+    </div>
+    
+    <div class="warning-box">
+      ⚠️ Developer Tokenは<strong>90日間</strong>有効です。期限が切れたら再度取得してください。
+    </div>
+    
+    <form id="settingsForm">
+      <label for="developerToken">Developer Token *</label>
+      <input type="password" id="developerToken" placeholder="S=s1:U=xxxxx:E=xxxxx:C=xxxxx:P=xxxx:A=xxxx:V=2:H=xxxxx" required>
+      
+      <label for="notebookName">保存先ノートブック名（オプション）</label>
+      <input type="text" id="notebookName" placeholder="ChatGPT（空欄の場合はデフォルトノートブック）">
+      
+      <button type="submit" id="saveButton">💾 保存</button>
+    </form>
+    
+    <div class="status" id="status"></div>
+    
+    <div class="token-info" id="tokenInfo" style="display: none;">
+      <div class="label">現在の設定:</div>
+      <div class="value" id="currentToken">トークン: 設定済み ✓</div>
+      <div class="value" id="currentNotebook"></div>
+      <div class="value" id="tokenExpiry"></div>
+    </div>
+  </div>
+  
+  <script src="options.js"></script>
+</body>
+</html>
