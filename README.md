@@ -43,12 +43,22 @@ pip install -r requirements.txt
 
 ## 初期設定
 
-### 1. Evernote APIトークンの取得
+### 1. Evernote API認証情報の取得
+
+**方法A: OAuth認証（推奨）**
+
+Evernote Developer Supportから提供された認証情報を使用：
+
+1. メールで届いた1Passwordリンクにアクセス
+2. **Username**（Consumer Key）をコピー
+3. **Password**（Consumer Secret）をコピー
+
+**方法B: Developer Token（代替）**
 
 1. [Evernote Developer Portal](https://dev.evernote.com/) にアクセス
 2. アカウントでログイン
 3. 新しいAPIキーを作成
-4. **Developer Token**（APIトークン）をコピー
+4. **Developer Token**をコピー
 
 ### 2. ChatGPTデータフォルダの確認
 
@@ -74,9 +84,32 @@ Copy-Item .env.example .env
 
 `.env` ファイルを編集：
 
+**OAuth認証を使用する場合（推奨）:**
+
 ```ini
-# Evernote API設定
-EVERNOTE_API_TOKEN=your_actual_token_here
+# Evernote API設定（OAuth認証）
+EVERNOTE_CONSUMER_KEY=your_consumer_key_from_1password
+EVERNOTE_CONSUMER_SECRET=your_consumer_secret_from_1password
+EVERNOTE_NOTEBOOK_NAME=ChatGPT Logs
+EVERNOTE_ENVIRONMENT=production
+
+# ChatGPTデータフォルダ
+CHATGPT_DATA_PATH=C:\Users\YourName\AppData\Roaming\ChatGPT
+
+# 監視対象の拡張子
+WATCH_EXTENSIONS=.html,.json,.txt
+
+# その他の設定
+LOG_LEVEL=INFO
+LOG_FILE=chatgpt_evernote_sync.log
+DUPLICATE_DB_PATH=./sync_history.db
+```
+
+**Developer Tokenを使用する場合（代替）:**
+
+```ini
+# Evernote API設定（Developer Token）
+EVERNOTE_API_TOKEN=your_developer_token_here
 EVERNOTE_NOTEBOOK_NAME=ChatGPT Logs
 EVERNOTE_ENVIRONMENT=production
 
@@ -105,6 +138,27 @@ python check_setup.py
 すべてのチェック項目が ✓ になれば準備完了です。
 
 ## 使い方
+
+### OAuth認証の初回セットアップ
+
+OAuth認証（Consumer Key/Secret）を使用する場合、初回起動時にブラウザで認証を行います：
+
+1. スクリプトを起動：
+```powershell
+python main.py
+```
+
+2. 自動的にブラウザが開きます（開かない場合は表示されたURLを手動でコピー）
+
+3. Evernoteにログインし、アプリケーションを認証
+
+4. 表示される**Verification Code**をコピー
+
+5. ターミナルに戻り、Verification Codeを貼り付けて Enter
+
+6. 認証が完了すると、トークンが `.evernote_oauth_token` に保存されます
+
+7. 次回以降は自動的にこのトークンが使用されます
 
 ### 基本的な起動
 
@@ -177,9 +231,24 @@ chatgpt-to-evernote/
 
 ## トラブルシューティング
 
-### 問題: "EVERNOTE_API_TOKEN が設定されていません"
+### 問題: "Evernote認証情報が設定されていません"
 
-**解決策**: `.env` ファイルに正しいAPIトークンを設定してください。
+**解決策**: `.env` ファイルに以下のいずれかを設定してください：
+- OAuth認証: `EVERNOTE_CONSUMER_KEY` と `EVERNOTE_CONSUMER_SECRET`
+- Developer Token: `EVERNOTE_API_TOKEN`
+
+### 問題: OAuth認証で "Verification Code" が表示されない
+
+**解決策**:
+1. ブラウザでEvernoteにログインしているか確認
+2. アプリケーションの認証を許可したか確認
+3. 認証完了後のページに表示される英数字のコードをコピー
+
+### 問題: "保存済みトークンが使用できません"
+
+**解決策**:
+1. `.evernote_oauth_token` ファイルを削除
+2. スクリプトを再起動して再度OAuth認証を実行
 
 ### 問題: "ChatGPTデータフォルダが見つかりません"
 
@@ -191,7 +260,7 @@ chatgpt-to-evernote/
 ### 問題: "Evernote接続テスト失敗"
 
 **解決策**:
-1. APIトークンが正しいか確認
+1. 認証情報が正しいか確認（OAuth: Consumer Key/Secret、または Developer Token）
 2. インターネット接続を確認
 3. `EVERNOTE_ENVIRONMENT` が `production` か `sandbox` のいずれかになっているか確認
 

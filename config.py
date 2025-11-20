@@ -21,14 +21,23 @@ class Config:
     
     @property
     def evernote_api_token(self) -> str:
-        """Evernote APIトークン"""
-        token = os.getenv('EVERNOTE_API_TOKEN', '')
-        if not token or token == 'your_evernote_api_token_here':
-            raise ValueError(
-                "EVERNOTE_API_TOKEN が設定されていません。"
-                ".env ファイルに実際のAPIトークンを設定してください。"
-            )
-        return token
+        """Evernote APIトークン（オプション、OAuth使用時は不要）"""
+        return os.getenv('EVERNOTE_API_TOKEN', '')
+    
+    @property
+    def evernote_consumer_key(self) -> str:
+        """Evernote Consumer Key（OAuth認証用）"""
+        return os.getenv('EVERNOTE_CONSUMER_KEY', '')
+    
+    @property
+    def evernote_consumer_secret(self) -> str:
+        """Evernote Consumer Secret（OAuth認証用）"""
+        return os.getenv('EVERNOTE_CONSUMER_SECRET', '')
+    
+    @property
+    def use_oauth(self) -> bool:
+        """OAuth認証を使用するかどうか"""
+        return bool(self.evernote_consumer_key and self.evernote_consumer_secret)
     
     @property
     def evernote_notebook_name(self) -> str:
@@ -99,8 +108,23 @@ class Config:
     def _validate_config(self):
         """設定の検証"""
         try:
-            # 必須項目のチェック
-            _ = self.evernote_api_token
+            # OAuth または APIトークンのいずれかが必要
+            has_oauth = self.use_oauth
+            has_token = bool(self.evernote_api_token and 
+                           self.evernote_api_token != 'your_evernote_api_token_here')
+            
+            if not has_oauth and not has_token:
+                raise ValueError(
+                    "Evernote認証情報が設定されていません。\n"
+                    ".env ファイルに以下のいずれかを設定してください:\n"
+                    "  - EVERNOTE_CONSUMER_KEY と EVERNOTE_CONSUMER_SECRET (OAuth認証)\n"
+                    "  - EVERNOTE_API_TOKEN (Developer Token)\n"
+                )
+            
+            if has_oauth:
+                logger.info("OAuth認証を使用します")
+            else:
+                logger.info("Developer Token認証を使用します")
             
             # ChatGPTデータパスの存在確認
             if not os.path.exists(self.chatgpt_data_path):

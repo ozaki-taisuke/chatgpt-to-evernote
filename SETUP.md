@@ -38,7 +38,18 @@ chatgpt-to-evernote/
 
 ## 🔧 次に必要な作業
 
-### ステップ1: Evernote APIトークンの取得
+### ステップ1: Evernote認証情報の取得
+
+**方法A: OAuth認証（推奨）**
+
+Evernote Developer Supportから提供された認証情報を使用：
+
+1. メールで届いた1Passwordリンクにアクセス
+2. メールアドレスで認証
+3. **Username欄の値** = Consumer Key をコピー
+4. **Password欄の値** = Consumer Secret をコピー
+
+**方法B: Developer Token（代替）**
 
 1. [Evernote Developer Portal](https://dev.evernote.com/) にアクセス
 2. アカウントでログイン
@@ -68,6 +79,25 @@ C:\Users\<ユーザー名>\AppData\Roaming\ChatGPT
 
 エディタで `.env` ファイルを開き、以下を設定：
 
+**OAuth認証を使用する場合（推奨）:**
+
+```ini
+# 取得したConsumer KeyとSecretを設定
+EVERNOTE_CONSUMER_KEY=your_actual_consumer_key
+EVERNOTE_CONSUMER_SECRET=your_actual_consumer_secret
+
+# 確認したChatGPTのパスを設定
+CHATGPT_DATA_PATH=C:\Users\<あなたのユーザー名>\AppData\Roaming\ChatGPT
+
+# その他はデフォルトでOK（必要に応じて変更）
+EVERNOTE_NOTEBOOK_NAME=ChatGPT Logs
+EVERNOTE_ENVIRONMENT=production
+WATCH_EXTENSIONS=.html,.json,.txt
+LOG_LEVEL=INFO
+```
+
+**Developer Tokenを使用する場合（代替）:**
+
 ```ini
 # 取得したAPIトークンを設定
 EVERNOTE_API_TOKEN=S=s1:U=xxxxx:E=xxxxx...
@@ -88,6 +118,14 @@ LOG_LEVEL=INFO
 ```powershell
 python main.py
 ```
+
+**OAuth認証の場合:** 初回起動時にブラウザでEvernote認証が必要です：
+1. 自動的にブラウザが開く
+2. Evernoteにログインして認証
+3. 表示される Verification Code をコピー
+4. ターミナルに貼り付けて Enter
+5. 認証完了後、`.evernote_oauth_token` に保存されます
+6. 次回以降は自動的にトークンが使用されます
 
 **方法2: バッチファイル使用**
 ```powershell
@@ -116,14 +154,25 @@ Ctrl + C
 
 ## 🐛 トラブルシューティング
 
-### エラー: "EVERNOTE_API_TOKEN が設定されていません"
+### エラー: "Evernote認証情報が設定されていません"
 
-**原因:** `.env` ファイルにAPIトークンが設定されていない
+**原因:** `.env` ファイルに認証情報が設定されていない
 
 **解決策:**
 1. `.env` ファイルを開く
-2. `EVERNOTE_API_TOKEN=your_evernote_api_token_here` を実際のトークンに変更
-3. ファイルを保存
+2. OAuth使用時: `EVERNOTE_CONSUMER_KEY` と `EVERNOTE_CONSUMER_SECRET` を実際の値に変更
+3. Developer Token使用時: `EVERNOTE_API_TOKEN` を実際のトークンに変更
+4. ファイルを保存
+
+### エラー: OAuth認証で "Verification Code" の入力を求められる
+
+**原因:** 初回起動時の正常な動作です
+
+**解決策:**
+1. ブラウザで表示されるEvernote認証ページにログイン
+2. アプリケーションを認証
+3. 表示される英数字のコード（Verification Code）をコピー
+4. ターミナルに貼り付けて Enter を押す
 
 ### エラー: "ChatGPTデータフォルダが見つかりません"
 

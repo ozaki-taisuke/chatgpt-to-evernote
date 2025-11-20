@@ -125,11 +125,21 @@ def main():
         
         # Evernote接続
         logger.info("Evernoteに接続中...")
-        evernote = EvernoteSync(
-            api_token=config.evernote_api_token,
-            notebook_name=config.evernote_notebook_name,
-            sandbox=(config.evernote_environment == 'sandbox')
-        )
+        
+        # OAuth または APIトークンで認証
+        if config.use_oauth:
+            evernote = EvernoteSync(
+                notebook_name=config.evernote_notebook_name,
+                sandbox=(config.evernote_environment == 'sandbox'),
+                consumer_key=config.evernote_consumer_key,
+                consumer_secret=config.evernote_consumer_secret
+            )
+        else:
+            evernote = EvernoteSync(
+                notebook_name=config.evernote_notebook_name,
+                sandbox=(config.evernote_environment == 'sandbox'),
+                api_token=config.evernote_api_token
+            )
         
         # 接続テスト
         if not evernote.test_connection():

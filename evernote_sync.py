@@ -6,6 +6,7 @@ import logging
 from datetime import datetime
 from typing import Optional
 import hashlib
+import webbrowser
 
 try:
     from evernote.api.client import EvernoteClient
@@ -24,12 +25,21 @@ logger = logging.getLogger(__name__)
 class EvernoteSync:
     """Evernote同期クラス"""
     
-    def __init__(self, api_token: str, notebook_name: str, sandbox: bool = False):
+    def __init__(
+        self, 
+        notebook_name: str, 
+        sandbox: bool = False,
+        api_token: Optional[str] = None,
+        consumer_key: Optional[str] = None,
+        consumer_secret: Optional[str] = None
+    ):
         """
         Args:
-            api_token: Evernote APIトークン
             notebook_name: 保存先ノートブック名
             sandbox: サンドボックス環境を使用する場合True
+            api_token: Evernote APIトークン（Developer Token使用時）
+            consumer_key: Consumer Key（OAuth使用時）
+            consumer_secret: Consumer Secret（OAuth使用時）
         """
         if not EVERNOTE_AVAILABLE:
             raise ImportError(
@@ -37,18 +47,114 @@ class EvernoteSync:
                 "pip install evernote3 を実行してください。"
             )
         
-        self.api_token = api_token
         self.notebook_name = notebook_name
         self.sandbox = sandbox
         
         try:
-            self.client = EvernoteClient(token=api_token, sandbox=sandbox)
+            # OAuth認証を使用する場合
+            if consumer_key and consumer_secret:
+                logger.info("OAuth認証でEvernoteに接続します...")
+                self.client = self._oauth_authentication(consumer_key, consumer_secret, sandbox)
+            # Developer Token を使用する場合
+            elif api_token:
+                logger.info("Developer Tokenでvernoteに接続します...")
+                self.client = EvernoteClient(token=api_token, sandbox=sandbox)
+            else:
+                raise ValueError("APIトークンまたはOAuth認証情報が必要です")
+            
             self.note_store = self.client.get_note_store()
             self.notebook_guid = self._get_or_create_notebook()
             
             logger.info(f"Evernote接続成功: ノートブック '{notebook_name}'")
             
         except Exception as e:
+            logger.error(f"Evernote接続エラー: {e}")
+            raise
+    
+    def _oauth_authentication(
+        self, 
+        consumer_key: str, 
+        consumer_secret: str, 
+        sandbox: bool
+    ) -> EvernoteClient:
+        """
+        OAuth認証を実行
+        
+        Args:
+            consumer_key: Consumer Key
+            consumer_secret: Consumer Secret
+            sandbox: サンドボックス環境を使用する場合True
+        
+        Returns:
+            認証済みのEvernoteClientインスタンス
+        """
+        # EvernoteClientを初期化（OAuth用）
+        client = EvernoteClient(
+            consumer_key=consumer_key,
+            consumer_secret=consumer_secret,
+            sandbox=sandbox
+        )
+        
+        # 認証トークンファイルのパス
+        token_file = '.evernote_oauth_token'
+        
+        # 既存のトークンを試行
+        try:
+            with open(token_file, 'r') as f:
+                token = f.read().strip()
+                if token:
+                    logger.info("保存済みのOAuthトークンを使用します")
+                    # トークンが有効か確認
+                    test_client = EvernoteClient(token=token, sandbox=sandbox)
+                    test_client.get_user_store().getUser()
+                    logger.info("保存済みトークンは有効です")
+                    return test_client
+        except (FileNotFoundError, Exception) as e:
+            logger.debug(f"保存済みトークンが使用できません: {e}")
+        
+        # 新規OAuth認証フロー
+        logger.info("OAuth認証を開始します...")
+        
+        # リクエストトークンを取得
+        request_token = client.get_request_token('http://localhost')
+        
+        # 認証URLを生成
+        auth_url = client.get_authorize_url(request_token)
+        
+        print("\n" + "=" * 60)
+        print("Evernote OAuth認証")
+        print("=" * 60)
+        print("\n1. 以下のURLをブラウザで開いてください:")
+        print(f"\n   {auth_url}\n")
+        print("2. Evernoteにログインして、アプリケーションを認証してください")
+        print("3. 認証後、表示されるverification codeをコピーしてください")
+        print("=" * 60)
+        
+        # ブラウザで自動的に開く
+        try:
+            webbrowser.open(auth_url)
+            logger.info("ブラウザで認証URLを開きました")
+        except Exception as e:
+            logger.warning(f"ブラウザを自動で開けませんでした: {e}")
+        
+        # ユーザーからverification codeを取得
+        oauth_verifier = input("\nVerification codeを入力してください: ").strip()
+        
+        # アクセストークンを取得
+        logger.info("アクセストークンを取得中...")
+        access_token = client.get_access_token(
+            request_token['oauth_token'],
+            request_token['oauth_token_secret'],
+            oauth_verifier
+        )
+        
+        # トークンを保存
+        with open(token_file, 'w') as f:
+            f.write(access_token)
+        logger.info(f"OAuthトークンを保存しました: {token_file}")
+        
+        # 認証済みクライアントを返す
+        return EvernoteClient(token=access_token, sandbox=sandbox)
             logger.error(f"Evernote接続エラー: {e}")
             raise
     

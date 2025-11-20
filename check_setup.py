@@ -59,12 +59,24 @@ def check_env_file():
     
     issues = []
     
+    # OAuth認証のチェック
+    consumer_key = os.getenv('EVERNOTE_CONSUMER_KEY', '')
+    consumer_secret = os.getenv('EVERNOTE_CONSUMER_SECRET', '')
+    
     # APIトークンのチェック
     token = os.getenv('EVERNOTE_API_TOKEN', '')
-    if not token or token == 'your_evernote_api_token_here':
-        issues.append("EVERNOTE_API_TOKEN が設定されていません")
+    
+    # いずれかの認証方法が設定されているか確認
+    has_oauth = (consumer_key and consumer_key != 'your_consumer_key_here' and
+                 consumer_secret and consumer_secret != 'your_consumer_secret_here')
+    has_token = (token and token != 'your_evernote_api_token_here')
+    
+    if has_oauth:
+        print("   ✓ OAuth認証情報が設定されています")
+    elif has_token:
+        print("   ✓ Developer Tokenが設定されています")
     else:
-        print("   ✓ EVERNOTE_API_TOKEN が設定されています")
+        issues.append("Evernote認証情報が設定されていません（EVERNOTE_CONSUMER_KEY + EVERNOTE_CONSUMER_SECRET または EVERNOTE_API_TOKEN）")
     
     # ChatGPTパスのチェック
     path = os.getenv('CHATGPT_DATA_PATH', '')

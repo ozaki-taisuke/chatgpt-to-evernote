@@ -29,6 +29,7 @@ ENV/
 # 環境変数と設定ファイル
 .env
 config.ini
+.evernote_oauth_token
 
 # ログファイル
 *.log
