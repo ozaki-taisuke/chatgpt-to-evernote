@@ -234,6 +234,86 @@ class EvernoteSync:
             logger.error(f"ノート作成エラー: {e}")
             return None
     
+    def update_note(
+        self, 
+        note_guid: str,
+        title: str, 
+        content: str, 
+        source_file: str,
+        is_html: bool = False
+    ) -> bool:
+        """
+        既存のEvernoteノートを更新
+        
+        Args:
+            note_guid: 更新対象のノートGUID
+            title: ノートタイトル
+            content: ノート本文（テキストまたはHTML）
+            source_file: 元ファイルパス
+            is_html: contentがHTMLの場合True
+        
+        Returns:
+            成功した場合True
+        """
+        try:
+            # 既存ノートを取得
+            note = self.note_store.getNote(note_guid, True, False, False, False)
+            
+            # ENML形式に変換
+            if is_html:
+                enml_content = self._html_to_enml(content, source_file)
+            else:
+                enml_content = self._text_to_enml(content, source_file)
+            
+            # ノート内容を更新
+            note.title = title
+            note.content = enml_content
+            
+            # 更新を送信
+            self.note_store.updateNote(note)
+            
+            logger.info(f"Evernoteノート更新成功: {title} (GUID: {note_guid})")
+            return True
+            
+        except EDAMUserException as e:
+            logger.error(f"Evernoteユーザーエラー: {e.errorCode} - {e.parameter}")
+            return False
+        except EDAMSystemException as e:
+            logger.error(f"Evernoteシステムエラー: {e.errorCode} - {e.message}")
+            return False
+        except Exception as e:
+            logger.error(f"ノート更新エラー: {e}")
+            return False
+    
+    def create_or_update_note(
+        self,
+        note_guid: Optional[str],
+        title: str,
+        content: str,
+        source_file: str,
+        is_html: bool = False
+    ) -> Optional[str]:
+        """
+        ノートを作成または更新（統合インターフェース）
+        
+        Args:
+            note_guid: 既存ノートのGUID（新規作成の場合はNone）
+            title: ノートタイトル
+            content: ノート本文
+            source_file: 元ファイルパス
+            is_html: contentがHTMLの場合True
+        
+        Returns:
+            ノートGUID（新規作成時は新しいGUID、更新時は同じGUID）、失敗時はNone
+        """
+        if note_guid:
+            # 既存ノートを更新
+            success = self.update_note(note_guid, title, content, source_file, is_html)
+            return note_guid if success else None
+        else:
+            # 新規ノートを作成
+            return self.create_note(title, content, source_file, is_html)
+    
     def _text_to_enml(self, text: str, source_file: str) -> str:
         """
         プレーンテキストをENML形式に変換

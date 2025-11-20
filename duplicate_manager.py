@@ -29,6 +29,7 @@ class DuplicateManager:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             
+            # 同期履歴テーブル（既存）
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS sync_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,10 +41,27 @@ class DuplicateManager:
                 )
             ''')
             
+            # ファイルパス→ノートGUID対応テーブル（新規）
+            # 1ファイル = 1ノートを維持するための管理テーブル
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS file_note_mapping (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    file_path TEXT UNIQUE NOT NULL,
+                    note_guid TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
             # インデックス作成
             cursor.execute('''
                 CREATE INDEX IF NOT EXISTS idx_file_hash 
                 ON sync_history(file_hash)
+            ''')
+            
+            cursor.execute('''
+                CREATE INDEX IF NOT EXISTS idx_file_path 
+                ON file_note_mapping(file_path)
             ''')
             
             conn.commit()
@@ -182,3 +200,90 @@ class DuplicateManager:
         except sqlite3.Error as e:
             logger.error(f"履歴クリアエラー: {e}")
             return False
+    
+    def get_note_guid_by_path(self, file_path: str) -> Optional[str]:
+        """
+        ファイルパスに対応するEvernoteノートGUIDを取得
+        
+        Args:
+            file_path: ファイルパス
+        
+        Returns:
+            ノートGUID、存在しない場合はNone
+        """
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute(
+                'SELECT note_guid FROM file_note_mapping WHERE file_path = ?',
+                (file_path,)
+            )
+            
+            result = cursor.fetchone()
+            conn.close()
+            
+            if result:
+                logger.debug(f"ノートGUID取得: {file_path} -> {result[0]}")
+                return result[0]
+            else:
+                logger.debug(f"ノートGUID未登録: {file_path}")
+                return None
+            
+        except sqlite3.Error as e:
+            logger.error(f"ノートGUID取得エラー: {e}")
+            return None
+    
+    def save_note_guid_for_path(self, file_path: str, note_guid: str) -> bool:
+        """
+        ファイルパスとEvernoteノートGUIDの対応を保存
+        
+        Args:
+            file_path: ファイルパス
+            note_guid: EvernoteノートGUID
+        
+        Returns:
+            成功した場合True
+        """
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # UPSERTロジック（INSERT OR REPLACE）
+            cursor.execute('''
+                INSERT INTO file_note_mapping (file_path, note_guid, updated_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(file_path) 
+                DO UPDATE SET note_guid = excluded.note_guid, updated_at = CURRENT_TIMESTAMP
+            ''', (file_path, note_guid))
+            
+            conn.commit()
+            conn.close()
+            
+            logger.info(f"ノートGUIDを保存: {file_path} -> {note_guid}")
+            return True
+            
+        except sqlite3.Error as e:
+            logger.error(f"ノートGUID保存エラー: {e}")
+            return False
+    
+    def get_file_note_count(self) -> int:
+        """
+        管理中のファイル→ノート対応の総数を取得
+        
+        Returns:
+            対応数
+        """
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('SELECT COUNT(*) FROM file_note_mapping')
+            count = cursor.fetchone()[0]
+            
+            conn.close()
+            return count
+            
+        except sqlite3.Error as e:
+            logger.error(f"ファイル→ノート対応数取得エラー: {e}")
+            return 0

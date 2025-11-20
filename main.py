@@ -64,6 +64,13 @@ def process_file(
     """
     検知されたファイルを処理してEvernoteに同期
     
+    重要な変更点：
+    - 1ファイル = 1ノート の原則を維持
+    - 既存ノートがあれば更新、なければ新規作成
+    - 重複チェックは「同じ内容の再送信防止」ではなく「更新要否の判定」に使用
+    
+    TODO: ChatGPTの会話本文ファイルの構造が判明したら、ここで抽出ロジックを差し替える
+    
     Args:
         file_path: ファイルパス
         evernote: EvernoteSyncインスタンス
@@ -76,9 +83,12 @@ def process_file(
         # ファイル情報取得
         file_mtime = os.path.getmtime(file_path)
         
-        # 重複チェック
-        if duplicate_manager.is_already_synced(file_path, file_mtime):
-            logger.info(f"スキップ（同期済み）: {file_path}")
+        # 既存のノートGUIDを確認
+        existing_guid = duplicate_manager.get_note_guid_by_path(file_path)
+        
+        # 内容変更チェック（同じ内容を再送信しない）
+        if existing_guid and duplicate_manager.is_already_synced(file_path, file_mtime):
+            logger.info(f"スキップ（未変更）: {file_path}")
             return
         
         # テキスト抽出
@@ -92,9 +102,14 @@ def process_file(
         # ノートタイトル生成
         title = generate_note_title(file_path)
         
-        # Evernoteにノート作成
-        logger.info("Evernoteにノートを作成中...")
-        note_guid = evernote.create_note(
+        # Evernoteにノートを作成または更新
+        if existing_guid:
+            logger.info(f"既存ノートを更新中... (GUID: {existing_guid})")
+        else:
+            logger.info("新規ノートを作成中...")
+        
+        note_guid = evernote.create_or_update_note(
+            note_guid=existing_guid,
             title=title,
             content=content,
             source_file=file_path,
@@ -102,9 +117,15 @@ def process_file(
         )
         
         if note_guid:
-            # 同期済みとしてマーク
+            # ファイルパス→ノートGUIDの対応を保存
+            duplicate_manager.save_note_guid_for_path(file_path, note_guid)
+            # 同期済みとしてマーク（変更検知用）
             duplicate_manager.mark_as_synced(file_path, file_mtime, note_guid)
-            logger.info(f"✓ 同期成功: {title}")
+            
+            if existing_guid:
+                logger.info(f"✓ 更新成功: {title}")
+            else:
+                logger.info(f"✓ 作成成功: {title}")
         else:
             logger.error(f"✗ 同期失敗: {file_path}")
     
@@ -121,6 +142,8 @@ def main():
         # 設定情報表示
         logger.info(f"監視パス: {config.chatgpt_data_path}")
         logger.info(f"監視拡張子: {', '.join(config.watch_extensions)}")
+        logger.info(f"除外パスパターン: {len(config.ignore_paths)}個")
+        logger.info(f"除外ファイル名: {len(config.ignore_filenames)}個")
         logger.info(f"保存先ノートブック: {config.evernote_notebook_name}")
         logger.info(f"Evernote環境: {config.evernote_environment}")
         
@@ -128,7 +151,9 @@ def main():
         logger.info("重複管理を初期化中...")
         duplicate_manager = DuplicateManager(config.duplicate_db_path)
         sync_count = duplicate_manager.get_sync_count()
+        file_note_count = duplicate_manager.get_file_note_count()
         logger.info(f"既存同期履歴: {sync_count}件")
+        logger.info(f"管理中のファイル→ノート対応: {file_note_count}件")
         
         # Evernote接続
         logger.info("Evernoteに接続中...")
@@ -163,6 +188,8 @@ def main():
             watch_path=config.chatgpt_data_path,
             callback=file_callback,
             watch_extensions=config.watch_extensions,
+            ignore_paths=config.ignore_paths,
+            ignore_filenames=config.ignore_filenames,
             recursive=True
         )
         

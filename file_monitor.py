@@ -15,6 +15,45 @@ from watchdog.events import FileSystemEventHandler, FileSystemEvent
 logger = logging.getLogger(__name__)
 
 
+def should_ignore_file(file_path: str, ignore_paths: List[str], ignore_filenames: List[str]) -> bool:
+    """
+    ファイルを除外すべきか判定
+    
+    TODO: ChatGPTの会話本文ファイルの構造が判明したら、ここで抽出ロジックを差し替える
+    現時点では、Sentryのセッション情報など明らかに会話内容ではないファイルを除外する
+    
+    Args:
+        file_path: ファイルパス
+        ignore_paths: 除外対象のパスパターンリスト（部分一致）
+        ignore_filenames: 除外対象のファイル名リスト（完全一致）
+    
+    Returns:
+        除外すべき場合True
+    """
+    # Windowsパスを正規化（バックスラッシュを使用）
+    normalized_path = os.path.normpath(file_path)
+    filename = os.path.basename(file_path)
+    
+    # パスパターンチェック（部分一致）
+    for pattern in ignore_paths:
+        # パス区切り文字を考慮してチェック
+        if f"\\{pattern}\\" in normalized_path or normalized_path.endswith(f"\\{pattern}"):
+            logger.debug(f"除外（パスパターン '{pattern}' に一致）: {file_path}")
+            return True
+        # パスの任意の部分に含まれるかチェック
+        if pattern in normalized_path:
+            logger.debug(f"除外（パスに '{pattern}' を含む）: {file_path}")
+            return True
+    
+    # ファイル名チェック（完全一致）
+    for ignored_name in ignore_filenames:
+        if filename == ignored_name:
+            logger.debug(f"除外（ファイル名 '{ignored_name}' に一致）: {file_path}")
+            return True
+    
+    return False
+
+
 class ChatGPTFileHandler(FileSystemEventHandler):
     """ChatGPTファイル変更ハンドラー"""
     
@@ -22,21 +61,28 @@ class ChatGPTFileHandler(FileSystemEventHandler):
         self, 
         callback: Callable[[str], None],
         watch_extensions: List[str],
+        ignore_paths: List[str],
+        ignore_filenames: List[str],
         debounce_seconds: float = 2.0
     ):
         """
         Args:
             callback: ファイル検知時に呼び出されるコールバック関数
             watch_extensions: 監視対象の拡張子リスト
+            ignore_paths: 除外対象のパスパターンリスト
+            ignore_filenames: 除外対象のファイル名リスト
             debounce_seconds: 連続イベントを無視する秒数
         """
         super().__init__()
         self.callback = callback
         self.watch_extensions = [ext.lower() for ext in watch_extensions]
+        self.ignore_paths = ignore_paths
+        self.ignore_filenames = ignore_filenames
         self.debounce_seconds = debounce_seconds
         self.last_processed = {}  # ファイルパス -> 最終処理時刻
         
         logger.info(f"監視対象拡張子: {', '.join(self.watch_extensions)}")
+        logger.info(f"除外パターン: {len(self.ignore_paths)}個のパスパターン, {len(self.ignore_filenames)}個のファイル名")
     
     def _should_process(self, file_path: str) -> bool:
         """
@@ -48,6 +94,10 @@ class ChatGPTFileHandler(FileSystemEventHandler):
         Returns:
             処理すべき場合True
         """
+        # 除外チェック（最優先）
+        if should_ignore_file(file_path, self.ignore_paths, self.ignore_filenames):
+            return False
+        
         # 拡張子チェック
         _, ext = os.path.splitext(file_path)
         if ext.lower() not in self.watch_extensions:
@@ -118,6 +168,8 @@ class FileMonitor:
         watch_path: str,
         callback: Callable[[str], None],
         watch_extensions: List[str],
+        ignore_paths: List[str],
+        ignore_filenames: List[str],
         recursive: bool = True
     ):
         """
@@ -125,11 +177,15 @@ class FileMonitor:
             watch_path: 監視対象ディレクトリパス
             callback: ファイル検知時のコールバック関数
             watch_extensions: 監視対象の拡張子リスト
+            ignore_paths: 除外対象のパスパターンリスト
+            ignore_filenames: 除外対象のファイル名リスト
             recursive: サブディレクトリも監視する場合True
         """
         self.watch_path = watch_path
         self.callback = callback
         self.watch_extensions = watch_extensions
+        self.ignore_paths = ignore_paths
+        self.ignore_filenames = ignore_filenames
         self.recursive = recursive
         
         # 監視対象パスの存在確認
@@ -140,7 +196,9 @@ class FileMonitor:
         # イベントハンドラー作成
         self.event_handler = ChatGPTFileHandler(
             callback=callback,
-            watch_extensions=watch_extensions
+            watch_extensions=watch_extensions,
+            ignore_paths=ignore_paths,
+            ignore_filenames=ignore_filenames
         )
         
         # オブザーバー作成
