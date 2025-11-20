@@ -23,13 +23,20 @@ def setup_logging():
     log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     date_format = '%Y-%m-%d %H:%M:%S'
     
+    # Windowsコンソールの文字化け対策
+    # 標準出力のエンコーディングをUTF-8に設定
+    if sys.stdout.encoding != 'utf-8':
+        sys.stdout.reconfigure(encoding='utf-8')
+    if sys.stderr.encoding != 'utf-8':
+        sys.stderr.reconfigure(encoding='utf-8')
+    
     # ルートロガー設定
     logging.basicConfig(
         level=log_level,
         format=log_format,
         datefmt=date_format,
         handlers=[
-            # コンソール出力
+            # コンソール出力（UTF-8）
             logging.StreamHandler(sys.stdout),
             # ファイル出力
             logging.FileHandler(
