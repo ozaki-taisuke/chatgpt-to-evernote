@@ -2,10 +2,11 @@
 ChatGPT to Evernote - ローカルサーバー
 
 Chrome拡張からのリクエストを受けてEvernoteに保存する
-アプリケーション化対応：ダブルクリック起動、システムトレイ常駐
+アプリケーション化対応:ダブルクリック起動、システムトレイ常駐
 """
 
 import sys
+import os
 import logging
 from pathlib import Path
 from flask import Flask, request, jsonify
@@ -55,11 +56,30 @@ def initialize_services():
         config = Config()
         
         # Evernote接続
-        evernote = EvernoteSync()
+        # サンドボックス環境かどうか
+        sandbox = config.evernote_environment == 'sandbox'
+        
+        # OAuth認証の場合
+        if config.use_oauth:
+            evernote = EvernoteSync(
+                notebook_name=config.evernote_notebook_name,
+                sandbox=sandbox,
+                consumer_key=config.evernote_consumer_key,
+                consumer_secret=config.evernote_consumer_secret
+            )
+        # Developer Token の場合
+        else:
+            evernote = EvernoteSync(
+                notebook_name=config.evernote_notebook_name,
+                sandbox=sandbox,
+                api_token=config.evernote_api_token
+            )
+        
         logger.info("✅ Evernote接続成功")
         
-        # 重複管理
-        duplicate_manager = DuplicateManager()
+        # 重複管理（データベースパスを指定）
+        db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sync_history.db')
+        duplicate_manager = DuplicateManager(db_path=db_path)
         logger.info("✅ 重複管理初期化完了")
         
         return True
