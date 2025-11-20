@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            width: 300px;
+            padding: 15px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+        }
+        
+        h2 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+            color: #333;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        
+        .status.ok {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        .status.error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        
+        button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .primary-btn {
+            background-color: #00897b;
+            color: white;
+        }
+        
+        .primary-btn:hover {
+            background-color: #00695c;
+        }
+        
+        .secondary-btn {
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .secondary-btn:hover {
+            background-color: #e0e0e0;
+        }
+        
+        .info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 10px;
+            color: #666;
+        }
+        
+        .loading.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h2>ChatGPT to Evernote</h2>
+    
+    <div id="status" class="status ok">
+        ✅ サーバー接続OK
+    </div>
+    
+    <button id="syncNow" class="primary-btn">今すぐ同期</button>
+    <button id="syncCurrent" class="secondary-btn">この会話を保存</button>
+    
+    <div id="loading" class="loading">
+        <div>🔄 同期中...</div>
+    </div>
+    
+    <div class="info">
+        <strong>自動同期:</strong> 1時間ごと<br>
+        <strong>サーバー:</strong> localhost:8765
+    </div>
+    
+    <script src="popup.js"></script>
+</body>
+</html>
