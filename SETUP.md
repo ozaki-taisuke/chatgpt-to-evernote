@@ -30,8 +30,27 @@ chatgpt-to-evernote/
 - beautifulsoup4 (HTML解析)
 - lxml (XML/HTML解析)
 - evernote3 (Evernote SDK)
+- oauth2 (OAuth認証)
 
-### 3. 設定ファイルの準備
+### 3. Python 3.11互換性パッチ（Python 3.11以降のみ）
+✅ Python 3.11以降を使用している場合、`patch_evernote.py` を実行してevernote3ライブラリを修正する必要があります。
+
+**確認方法:**
+```powershell
+python --version
+```
+
+**Python 3.11以降の場合、パッチを適用:**
+```powershell
+python patch_evernote.py
+```
+
+このスクリプトは自動的に：
+- evernote3ライブラリの問題箇所を修正（`inspect.getargspec` → `inspect.getfullargspec`）
+- 元のファイルのバックアップを作成
+- 適用結果を表示
+
+### 4. 設定ファイルの準備
 ✅ `.env` ファイルが作成されました（要編集）
 
 ---
@@ -60,19 +79,39 @@ Evernote Developer Supportから提供された認証情報を使用：
 
 以下のいずれかの方法で確認：
 
-**方法1: エクスプローラーから**
-```
-Win + R → %appdata% と入力 → ChatGPT フォルダを探す
+**方法1: PowerShellで確認（推奨・Store版対応）**
+
+**Store版かどうかを確認:**
+```powershell
+Get-AppxPackage | Where-Object {$_.Name -like "*ChatGPT*"}
 ```
 
-**方法2: PowerShellで確認**
+**Store版の場合、データフォルダを探す:**
 ```powershell
-Test-Path "$env:APPDATA\ChatGPT"
+Get-ChildItem "$env:LOCALAPPDATA\Packages" -Filter "*ChatGPT*" -Directory
+```
+表示されたフォルダ内の `LocalCache\Roaming\ChatGPT` が実際のパスです。
+
+例：
+```
+C:\Users\ozata\AppData\Local\Packages\OpenAI.ChatGPT-Desktop_2p2nqsd0c76g0\LocalCache\Roaming\ChatGPT
+```
+
+**方法2: エクスプローラーから（一般インストール版）**
+```
+Win + R → %appdata% と入力 → ChatGPT フォルダを探す
 ```
 
 一般的なパス：
 ```
 C:\Users\<ユーザー名>\AppData\Roaming\ChatGPT
+```
+
+**方法3: エクスプローラーから（Store版）**
+```
+Win + R → %localappdata%\Packages と入力
+→ OpenAI.ChatGPT-Desktop_ で始まるフォルダを探す
+→ LocalCache\Roaming\ChatGPT を確認
 ```
 
 ### ステップ3: .envファイルの編集
@@ -87,12 +126,15 @@ EVERNOTE_CONSUMER_KEY=your_actual_consumer_key
 EVERNOTE_CONSUMER_SECRET=your_actual_consumer_secret
 
 # 確認したChatGPTのパスを設定
+# 一般インストール版の例:
 CHATGPT_DATA_PATH=C:\Users\<あなたのユーザー名>\AppData\Roaming\ChatGPT
+# Microsoft Store版の例（IDは環境により異なります）:
+# CHATGPT_DATA_PATH=C:\Users\<あなたのユーザー名>\AppData\Local\Packages\OpenAI.ChatGPT-Desktop_2p2nqsd0c76g0\LocalCache\Roaming\ChatGPT
 
 # その他はデフォルトでOK（必要に応じて変更）
 EVERNOTE_NOTEBOOK_NAME=ChatGPT Logs
 EVERNOTE_ENVIRONMENT=production
-WATCH_EXTENSIONS=.html,.json,.txt
+WATCH_EXTENSIONS=.html,.json,.txt  # 注意: .ldb/.logはバイナリのため除外
 LOG_LEVEL=INFO
 ```
 
@@ -122,10 +164,19 @@ python main.py
 **OAuth認証の場合:** 初回起動時にブラウザでEvernote認証が必要です：
 1. 自動的にブラウザが開く
 2. Evernoteにログインして認証
-3. 表示される Verification Code をコピー
-4. ターミナルに貼り付けて Enter
-5. 認証完了後、`.evernote_oauth_token` に保存されます
-6. 次回以降は自動的にトークンが使用されます
+3. 認証後、ブラウザのURL欄を確認：`http://localhost/?oauth_token=xxx&oauth_verifier=ABCD1234`
+4. `oauth_verifier=` の後の値（例: `ABCD1234`）をコピー
+5. ターミナルに貼り付けて Enter
+6. 認証完了後、`.evernote_oauth_token` に保存されます
+7. 次回以降は自動的にトークンが使用されます
+
+**localhost画面が真っ白な場合:**
+
+専用ヘルパースクリプトを使用：
+```powershell
+python oauth_helper.py
+```
+このスクリプトが対話的に認証を進めてくれます。
 
 **方法2: バッチファイル使用**
 ```powershell
@@ -164,6 +215,18 @@ Ctrl + C
 3. Developer Token使用時: `EVERNOTE_API_TOKEN` を実際のトークンに変更
 4. ファイルを保存
 
+### エラー: Python 3.11で "AttributeError: module 'inspect' has no attribute 'getargspec'"
+
+**原因:** evernote3ライブラリがPython 3.11以降に対応していない
+
+**解決策:**
+```powershell
+python patch_evernote.py
+```
+このパッチを実行すると、evernote3ライブラリが自動的に修正されます。
+
+---
+
 ### エラー: OAuth認証で "Verification Code" の入力を求められる
 
 **原因:** 初回起動時の正常な動作です
@@ -176,12 +239,25 @@ Ctrl + C
 
 ### エラー: "ChatGPTデータフォルダが見つかりません"
 
-**原因:** 指定されたパスが存在しない
+**原因:** 指定されたパスが存在しない、またはMicrosoft Store版を使用している
 
 **解決策:**
+
+**Store版かどうかを確認:**
+```powershell
+Get-AppxPackage | Where-Object {$_.Name -like "*ChatGPT*"}
+```
+
+**Store版の場合、正しいパスを探す:**
+```powershell
+Get-ChildItem "$env:LOCALAPPDATA\Packages" -Filter "*ChatGPT*" -Directory
+```
+表示されたフォルダ内の `LocalCache\Roaming\ChatGPT` を `.env` に設定
+
+**一般版の場合:**
 1. ChatGPTアプリがインストールされているか確認
 2. エクスプローラーで隠しフォルダを表示する設定にする
-3. 実際のパスを確認して `.env` に設定
+3. `%appdata%\ChatGPT` が存在するか確認
 
 ### エラー: "Evernote接続テスト失敗"
 

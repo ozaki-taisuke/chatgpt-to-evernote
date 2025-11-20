@@ -26,7 +26,10 @@ EVERNOTE_CONSUMER_KEY=（Username欄の値をここにペースト）
 EVERNOTE_CONSUMER_SECRET=（Password欄の値をここにペースト）
 
 # ChatGPTのデータフォルダパスを設定
+# 一般インストール版の場合:
 CHATGPT_DATA_PATH=C:\Users\（あなたのユーザー名）\AppData\Roaming\ChatGPT
+# Microsoft Store版の場合（IDは環境により異なります）:
+# CHATGPT_DATA_PATH=C:\Users\（あなたのユーザー名）\AppData\Local\Packages\OpenAI.ChatGPT-Desktop_xxx\LocalCache\Roaming\ChatGPT
 
 # 以下はそのままでOK
 EVERNOTE_NOTEBOOK_NAME=ChatGPT Logs
@@ -34,6 +37,11 @@ EVERNOTE_ENVIRONMENT=production
 ```
 
 保存して閉じる。
+
+**Store版の場合の正確なパスの確認方法:**
+```powershell
+Get-ChildItem "$env:LOCALAPPDATA\Packages" -Filter "*ChatGPT*" -Directory
+```
 
 ### 3. セットアップ確認
 
@@ -44,6 +52,13 @@ python check_setup.py
 ```
 
 すべて ✓ になっていることを確認。
+
+**Python 3.11以降を使用している場合:**
+
+互換性パッチを適用：
+```powershell
+python patch_evernote.py
+```
 
 ### 4. 初回起動（OAuth認証）
 
@@ -56,10 +71,22 @@ python main.py
 1. 自動的にブラウザが開く（開かない場合は表示されたURLを手動でコピー）
 2. Evernoteにログイン
 3. アプリケーションに対するアクセスを「許可」
-4. 画面に表示される **Verification Code**（英数字）をコピー
-5. PowerShellのウィンドウに戻る
-6. "Verification codeを入力してください:" というプロンプトにコードをペースト
-7. Enterを押す
+4. 認証後、**ブラウザのURL欄**を確認：
+   ```
+   http://localhost/?oauth_token=xxx&oauth_verifier=ABCD1234
+   ```
+5. `oauth_verifier=` の後の値（例: `ABCD1234`）をコピー
+6. PowerShellのウィンドウに戻る
+7. "Verification codeを入力してください:" というプロンプトにコードをペースト
+8. Enterを押す
+
+**localhostページが真っ白で何も表示されない場合:**
+
+別の方法として、専用ヘルパースクリプトを使用：
+```powershell
+python oauth_helper.py
+```
+このスクリプトが対話的に認証を進め、同じトークンファイルを作成します。
 
 **認証完了！**
 
@@ -98,7 +125,24 @@ python main.py
 ## ❓ よくある質問
 
 **Q: Verification Codeはどこに表示される？**
-A: Evernote認証ページで「許可」をクリックした後、画面に表示される英数字のコードです。
+A: Evernote認証ページで「許可」をクリックした後、**ブラウザのURL欄**に表示されます。
+```
+http://localhost/?oauth_token=xxx&oauth_verifier=ABCD1234
+```
+この例では `ABCD1234` がVerification Codeです。
+
+**Q: localhostページが真っ白で何も表示されない**
+A: 正常です。URL欄の `oauth_verifier=` の後の値をコピーするか、`python oauth_helper.py` を使用してください。
+
+**Q: Python 3.11で動かない**
+A: `python patch_evernote.py` を実行して互換性パッチを適用してください。
+
+**Q: ChatGPTフォルダが見つからない（Microsoft Store版）**
+A: 以下のコマンドで探してください：
+```powershell
+Get-ChildItem "$env:LOCALAPPDATA\Packages" -Filter "*ChatGPT*" -Directory
+```
+表示されたフォルダ内の `LocalCache\Roaming\ChatGPT` が正しいパスです。
 
 **Q: 認証に失敗した場合は？**
 A: `.evernote_oauth_token` ファイルを削除して、再度 `python main.py` を実行してください。

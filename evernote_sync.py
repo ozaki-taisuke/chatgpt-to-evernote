@@ -4,7 +4,7 @@ Evernote APIを使用してノートを作成する
 """
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 import hashlib
 import webbrowser
 
@@ -16,6 +16,7 @@ try:
     EVERNOTE_AVAILABLE = True
 except ImportError:
     EVERNOTE_AVAILABLE = False
+    EvernoteClient = None  # 型チェック用のダミー
     logger = logging.getLogger(__name__)
     logger.warning("Evernote SDK (evernote3) がインストールされていません")
 
@@ -155,8 +156,6 @@ class EvernoteSync:
         
         # 認証済みクライアントを返す
         return EvernoteClient(token=access_token, sandbox=sandbox)
-            logger.error(f"Evernote接続エラー: {e}")
-            raise
     
     def _get_or_create_notebook(self) -> str:
         """
