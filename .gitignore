@@ -59,3 +59,9 @@ Thumbs.db
 conversations/
 cache/
 session_data/
+
+# 開発用ファイル
+dev/
+source_icon.png
+create_icons.py
+resize_icon.py
