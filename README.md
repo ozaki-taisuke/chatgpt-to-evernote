@@ -94,13 +94,31 @@ DUPLICATE_DB_PATH=./sync_history.db
 
 > ⚠️ **重要**: `.env` ファイルは個人情報を含むため、絶対にGitにコミットしないでください（`.gitignore`で除外済み）
 
+### 4. セットアップの確認
+
+設定が正しく完了しているか確認します：
+
+```powershell
+python check_setup.py
+```
+
+すべてのチェック項目が ✓ になれば準備完了です。
+
 ## 使い方
 
 ### 基本的な起動
 
+**方法1: Pythonコマンドで起動**
 ```powershell
 python main.py
 ```
+
+**方法2: バッチファイルで起動（推奨）**
+```powershell
+.\start_sync.bat
+```
+
+または、`start_sync.bat` をダブルクリック
 
 スクリプトが起動すると：
 
@@ -130,25 +148,18 @@ Ctrl + C
 
 ### 方法2: スタートアップフォルダ
 
-バッチファイル `start_sync.bat` を作成：
+1. `start_sync.bat` を右クリック → **ショートカットを作成**
+2. `Win + R` → `shell:startup` と入力してスタートアップフォルダを開く
+3. 作成したショートカットをスタートアップフォルダにコピー
 
-```batch
-@echo off
-cd /d "C:\path\to\chatgpt-to-evernote"
-call venv\Scripts\activate
-python main.py
-```
-
-このファイルをスタートアップフォルダに配置：
-
-```
-C:\Users\<ユーザー名>\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup
-```
+これでWindows起動時に自動的にスクリプトが開始されます。
 
 ## プロジェクト構造
 
 ```
 chatgpt-to-evernote/
+├── .github/
+│   └── copilot-instructions.md # プロジェクト情報
 ├── main.py                 # メインスクリプト
 ├── config.py              # 設定読み込み
 ├── file_monitor.py        # ファイル監視
@@ -158,6 +169,9 @@ chatgpt-to-evernote/
 ├── .env.example          # 設定ファイルサンプル
 ├── .env                  # 実際の設定ファイル（要作成）
 ├── .gitignore            # Git除外設定
+├── start_sync.bat        # Windows起動用バッチファイル
+├── check_setup.py        # セットアップチェックスクリプト
+├── SETUP.md              # セットアップガイド
 └── README.md             # このファイル
 ```
 
