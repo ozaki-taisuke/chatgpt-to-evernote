@@ -6,7 +6,6 @@ const SERVER_URL = 'http://localhost:8765';
 
 // DOM要素
 const statusDiv = document.getElementById('status');
-const syncNowBtn = document.getElementById('syncNow');
 const syncCurrentBtn = document.getElementById('syncCurrent');
 const loadingDiv = document.getElementById('loading');
 
@@ -47,36 +46,29 @@ function setStatus(type, message) {
  * イベントリスナー設定
  */
 function setupEventListeners() {
-    // 全会話同期ボタン
-    syncNowBtn.addEventListener('click', async () => {
-        setLoading(true);
-        try {
-            await chrome.runtime.sendMessage({ action: 'syncAll' });
-            setStatus('ok', '✅ 同期完了');
-        } catch (error) {
-            setStatus('error', `❌ ${error.message}`);
-        } finally {
-            setLoading(false);
-        }
-    });
-    
-    // 現在の会話保存ボタン
+    // 会話保存ボタン（新規作成・更新両対応）
     syncCurrentBtn.addEventListener('click', async () => {
         setLoading(true);
         try {
             // 現在のタブを取得
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             
+            console.log('Current tab:', tab);
+            
             if (!tab.url || (!tab.url.includes('chat.openai.com') && !tab.url.includes('chatgpt.com'))) {
                 setStatus('error', '⚠️ ChatGPTページで開いてください');
+                setLoading(false);
                 return;
             }
             
             // Content Scriptから会話抽出
+            console.log('Sending message to tab:', tab.id);
             const response = await chrome.tabs.sendMessage(tab.id, { action: 'extractConversation' });
+            console.log('Response from content script:', response);
             
             if (response && response.success && response.data) {
                 // サーバーに送信
+                console.log('Sending to server:', response.data);
                 const saveResponse = await fetch(`${SERVER_URL}/api/save`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -86,14 +78,19 @@ function setupEventListeners() {
                 
                 if (saveResponse.ok) {
                     const result = await saveResponse.json();
-                    setStatus('ok', `✅ 保存完了\n${result.message}`);
+                    const actionText = result.action === 'updated' ? '更新' : '保存';
+                    setStatus('ok', `✅ ${actionText}完了\n${result.message}`);
                 } else {
-                    throw new Error('保存に失敗しました');
+                    const errorText = await saveResponse.text();
+                    console.error('Server error:', errorText);
+                    throw new Error('保存に失敗しました: ' + saveResponse.status);
                 }
             } else {
+                console.error('No conversation data:', response);
                 setStatus('error', '⚠️ 会話データを取得できませんでした');
             }
         } catch (error) {
+            console.error('Error details:', error);
             setStatus('error', `❌ ${error.message}`);
         } finally {
             setLoading(false);
@@ -106,6 +103,5 @@ function setupEventListeners() {
  */
 function setLoading(isLoading) {
     loadingDiv.classList.toggle('active', isLoading);
-    syncNowBtn.disabled = isLoading;
     syncCurrentBtn.disabled = isLoading;
 }

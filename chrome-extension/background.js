@@ -18,8 +18,8 @@ chrome.runtime.onInstalled.addListener(async () => {
         periodInMinutes: SYNC_INTERVAL_MINUTES
     });
     
-    // 初回同期実行
-    setTimeout(() => syncAllConversations(), 5000);
+    // 初回同期は実行しない（既存タブにcontent scriptが読み込まれていないため）
+    console.log('⏰ Next sync will run in', SYNC_INTERVAL_MINUTES, 'minutes');
 });
 
 /**
@@ -45,6 +45,28 @@ chrome.action.onClicked.addListener(async (tab) => {
         // それ以外は全会話同期
         await syncAllConversations();
     }
+});
+
+/**
+ * ポップアップからのメッセージリスナー
+ */
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    console.log('📨 Received message from popup:', request.action);
+    
+    if (request.action === 'syncAll') {
+        // 非同期処理なのでPromiseで処理
+        syncAllConversations()
+            .then(() => {
+                sendResponse({ success: true });
+            })
+            .catch((error) => {
+                console.error('Error in syncAll:', error);
+                sendResponse({ success: false, error: error.message });
+            });
+        return true; // 非同期レスポンスを有効化
+    }
+    
+    return false;
 });
 
 /**
@@ -139,6 +161,14 @@ async function syncAllConversations() {
         let syncCount = 0;
         for (const tab of tabs) {
             try {
+                // Content scriptが読み込まれているか確認
+                try {
+                    await chrome.tabs.sendMessage(tab.id, { action: 'ping' });
+                } catch (e) {
+                    console.warn(`⚠️ Content script not loaded in tab ${tab.id}, skipping...`);
+                    continue;
+                }
+                
                 await syncCurrentTab(tab.id);
                 syncCount++;
                 

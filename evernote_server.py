@@ -136,9 +136,12 @@ def save_conversation():
                 tags=['ChatGPT', '自動同期']
             )
             
-            # GUID保存
-            duplicate_manager.save_note_guid_for_path(conversation_id, note_guid)
-            action = 'created'
+            if note_guid:
+                # GUID保存
+                duplicate_manager.save_note_guid_for_path(conversation_id, note_guid)
+                action = 'created'
+            else:
+                raise Exception("ノート作成に失敗しました")
         
         logger.info(f"✅ 保存完了: {title}")
         
@@ -159,6 +162,8 @@ def save_conversation():
 
 def format_conversation_to_enml(title, messages, url):
     """会話をENML形式に変換"""
+    import re
+    
     enml = '<?xml version="1.0" encoding="UTF-8"?>'
     enml += '<!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">'
     enml += '<en-note>'
@@ -177,16 +182,20 @@ def format_conversation_to_enml(title, messages, url):
         role = msg.get('role', 'unknown')
         content = msg.get('content', '')
         
-        if role == 'user':
-            enml += '<div style="background-color: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px;">'
-            enml += '<strong>👤 あなた:</strong><br/>'
-        else:
-            enml += '<div style="background-color: #e8f5e9; padding: 10px; margin: 10px 0; border-radius: 5px;">'
-            enml += '<strong>🤖 ChatGPT:</strong><br/>'
+        # HTMLタグとカスタム属性を削除してプレーンテキストに
+        # ENMLでは限られたタグのみ許可されているため
+        cleaned_content = re.sub(r'<[^>]+>', '', str(content))
+        cleaned_content = escape_html(cleaned_content)
+        # 改行を<br/>に変換
+        cleaned_content = cleaned_content.replace('\n', '<br/>')
         
-        # HTMLタグをそのまま使う（Markdownは既にHTMLに変換されている想定）
-        enml += content
-        enml += '</div>'
+        if role == 'user':
+            enml += '<div><strong>👤 あなた:</strong><br/>'
+        else:
+            enml += '<div><strong>🤖 ChatGPT:</strong><br/>'
+        
+        enml += cleaned_content
+        enml += '</div><br/>'
     
     enml += '</en-note>'
     
@@ -211,7 +220,7 @@ def run_server():
     logger.info("📡 Chrome拡張からの接続を待機: http://localhost:8765")
     
     try:
-        app.run(host='localhost', port=8765, debug=False, use_reloader=False)
+        app.run(host='0.0.0.0', port=8765, debug=False, use_reloader=False, threaded=True)
     except Exception as e:
         logger.error(f"❌ サーバーエラー: {e}", exc_info=True)
 

@@ -4,6 +4,17 @@
 
 console.log('🔧 ChatGPT to Evernote: Content Script loaded');
 
+// デバッグ: ページ読み込み後に会話を抽出してみる
+setTimeout(() => {
+    console.log('🧪 Testing conversation extraction...');
+    const result = extractCurrentConversation();
+    if (result) {
+        console.log('✅ Extraction successful:', result);
+    } else {
+        console.log('❌ Extraction failed');
+    }
+}, 3000);
+
 /**
  * 現在開いている会話を抽出
  */
@@ -97,7 +108,10 @@ function extractCurrentConversation() {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log('📨 Received message:', request.action);
     
-    if (request.action === 'extractConversation') {
+    if (request.action === 'ping') {
+        // Content scriptが読み込まれているか確認するためのpingメッセージ
+        sendResponse({ success: true });
+    } else if (request.action === 'extractConversation') {
         const conversation = extractCurrentConversation();
         sendResponse({ success: !!conversation, data: conversation });
     }

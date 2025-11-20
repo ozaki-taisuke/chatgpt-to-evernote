@@ -191,7 +191,7 @@ class EvernoteSync:
         self, 
         title: str, 
         content: str, 
-        source_file: str,
+        tags: list = None,
         is_html: bool = False
     ) -> Optional[str]:
         """
@@ -199,25 +199,32 @@ class EvernoteSync:
         
         Args:
             title: ノートタイトル
-            content: ノート本文（テキストまたはHTML）
-            source_file: 元ファイルパス
-            is_html: contentがHTMLの場合True
+            content: ノート本文（ENMLまたはテキスト）
+            tags: タグのリスト
+            is_html: contentがHTMLの場合True（ENMLの場合はFalse）
         
         Returns:
             作成されたノートのGUID、失敗時はNone
         """
         try:
-            # ENML形式に変換
+            # ENML形式に変換（contentが既にENMLの場合はそのまま使用）
             if is_html:
-                enml_content = self._html_to_enml(content, source_file)
+                enml_content = self._html_to_enml(content, '')
+            elif content.startswith('<?xml'):
+                # 既にENML形式
+                enml_content = content
             else:
-                enml_content = self._text_to_enml(content, source_file)
+                enml_content = self._text_to_enml(content, '')
             
             # ノート作成
             note = Note()
             note.title = title
             note.content = enml_content
             note.notebookGuid = self.notebook_guid
+            
+            # タグ設定
+            if tags:
+                note.tagNames = tags
             
             created_note = self.note_store.createNote(note)
             
@@ -238,8 +245,7 @@ class EvernoteSync:
         self, 
         note_guid: str,
         title: str, 
-        content: str, 
-        source_file: str,
+        content: str,
         is_html: bool = False
     ) -> bool:
         """
@@ -248,9 +254,8 @@ class EvernoteSync:
         Args:
             note_guid: 更新対象のノートGUID
             title: ノートタイトル
-            content: ノート本文（テキストまたはHTML）
-            source_file: 元ファイルパス
-            is_html: contentがHTMLの場合True
+            content: ノート本文（ENMLまたはテキスト）
+            is_html: contentがHTMLの場合True（ENMLの場合はFalse）
         
         Returns:
             成功した場合True
@@ -259,11 +264,14 @@ class EvernoteSync:
             # 既存ノートを取得
             note = self.note_store.getNote(note_guid, True, False, False, False)
             
-            # ENML形式に変換
+            # ENML形式に変換（contentが既にENMLの場合はそのまま使用）
             if is_html:
-                enml_content = self._html_to_enml(content, source_file)
+                enml_content = self._html_to_enml(content, '')
+            elif content.startswith('<?xml'):
+                # 既にENML形式
+                enml_content = content
             else:
-                enml_content = self._text_to_enml(content, source_file)
+                enml_content = self._text_to_enml(content, '')
             
             # ノート内容を更新
             note.title = title
