@@ -91,8 +91,16 @@
     
     <button id="syncCurrent" class="primary-btn">この会話を保存</button>
     
+    <button id="importArchive" class="secondary-btn">📂 アーカイブをインポート</button>
+    <input type="file" id="fileInput" accept=".json" style="display: none;">
+    
     <div id="loading" class="loading">
         <div>🔄 保存中...</div>
+    </div>
+    
+    <div id="importProgress" class="loading">
+        <div id="progressText">📥 インポート中...</div>
+        <div id="progressCount" style="margin-top: 5px; font-size: 12px;"></div>
     </div>
     
     <div class="info">
